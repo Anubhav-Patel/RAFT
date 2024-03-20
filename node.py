@@ -8,14 +8,20 @@ class Node:
         self.current_role = "follower"
         self.current_leader = None
         self.votes_received = set()
-        self.other_nodes = [2,3,4,5]
+        self.other_nodes = [1,2,3,4,5]
+        self.address = None
+        self.election_timeout = 10
+        self.election_period_ms = randint(1000, 5000)
+        self.sent_length = {1:0, 2:0, 3:0, 4:0, 5:0}
+        self.acked_length = {1:0, 2:0, 3:0, 4:0, 5:0}
 
-def recover():
+    def recover():
+        #TODO recover
     
 
 class RaftService(rat_pb2_grpc.RaftServiceServicer):
-    # int node_id = int(input("Enter Node ID: "))
-    node1 = Node(1)
+    int node_id = int(input("Enter Node ID: "))
+    node1 = Node(node_id)
 
     def RequestVote(self, request, context):
         self.current_term = self.current_term + 1
@@ -55,19 +61,20 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
                 #TODO self.cancel_election_timer()
                 for follower_id in self.other_nodes:
                     if follower_id != self.node_id:
-                        # self.sent_length[follower_id] = len(self.log)
-                        # self.acked_length[follower_id] = 0
+                        self.sent_length[follower_id] = len(self.log)
+                        self.acked_length[follower_id] = 0
                         self.replicate_log(follower_id)
+
         elif term > self.current_term:
             self.current_term = term
             self.current_role = "follower"
             self.voted_for = None
             #TODO self.cancel_election_timer()
 
-    def broadcast_message(self, request, context):
+    def broadcast_msg_to_followers(self, request, context):
         if self.current_role == "leader":
             self.log.append({"msg": msg, "term": self.current_term, "index": len(self.log)})
-            # self.acked_length[self.node_id] = len(self.log)
+            self.acked_length[self.node_id] = len(self.log)
             for follower_id in self.other_nodes:
                 if follower_id != self.node_id:
                     self.replicate_log(follower_id)
@@ -76,13 +83,13 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
                 #TODO self.forward_to_leader(msg)
 
     def replicate_log(follower_id):
-        prefix_len = self.sent_length.get(follower_id, 0) 
-        suffix = self.log[prefix_len:]
-        prefix_term = 0
-        if prefix_len > 0:
-            prefix_term = self.log[prefix_len - 1]['term']
-        #TODO Sending LogRequest message
-        log_request_msg = ("LogRequest", self.node_id, self.current_term, prefix_len, prefix_term, self.commit_length, suffix)
+        previous_len = self.sent_length.get(follower_id, 0) 
+        suffix = self.log[previous_len:]
+        previous_term = 0
+        if previous_len > 0:
+            previous_term = self.log[previous_len - 1]['term']
+        
+        log_request_msg = (self.log['msg'], self.node_id, self.current_term, previous_len, previous_term, self.commit_length, suffix)
         self.send_message(log_request_msg, follower_id)
 
     def receive_msg(self, request, context):
@@ -95,11 +102,11 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
             self.current_role = "follower"
             self.current_leader = request.leader_id
 
-        log_ok = (len(self.log) >= prefix_len) and (prefix_len == 0 or self.log[prefix_len - 1]['term'] == prefix_term)
+        log_ok = (len(self.log) >= previous_len) and (previous_len == 0 or self.log[previous_len - 1]['term'] == previous_term)
 
         if request.term == self.current_term and log_ok:
-            ack = prefix_len + len(suffix)
-            self.AppendEntries(prefix_len, leader_commit, suffix)
+            ack = previous_len + len(suffix)
+            self.AppendEntries(previous_len, leader_commit, suffix)
             self.send_log_response(leader_id, ack, True)
         else:
             self.send_log_response(leader_id, 0, False)
