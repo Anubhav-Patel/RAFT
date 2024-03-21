@@ -112,6 +112,62 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
             self.send_log_response(leader_id, 0, False)
 
     def AppendEntries(self, request, context):
+        suffix = request.suffix
+        prefix_len = request.prefix_len
+        leader_commit = request.leader_commit
+
+        if suffix and len(self.log) > prefix_len:
+            index = min(len(self.log), prefix_len + len(suffix)) - 1
+            if self.log[index]['term'] != suffix[index - prefix_len]['term']:
+                self.log = self.log[:prefix_len]
+
+        if prefix_len + len(suffix) > len(self.log):
+            for i in range(len(self.log) - prefix_len, len(suffix)):
+                self.log.append(suffix[i])
+
+        if leader_commit > self.commit_length:
+            for i in range(self.commit_length, leader_commit):
+                self.deliver_to_application(self.log[i]['msg'])
+            self.commit_length = leader_commit
+
+    def ack(self, request, context):
+        term = request.term
+        ack =request.ack
+        success = request.success
+        follower = request.follower
+
+        if term == self.current_term and self.current_role == "leader":
+            if success and ack >= self.acked_length.get(follower, 0):
+                self.sent_length[follower] = ack
+                self.acked_length[follower] = ack
+                self.commit_log_entries()
+            elif self.sent_length.get(follower, 0) > 0:
+                self.sent_length[follower] -= 1
+                self.replicate_log(self.node_id, follower)
+        elif term > self.current_term:
+            self.current_term = term
+            self.current_role = "follower"
+            self.voted_for = None
+            self.cancel_election_timer()
+
+    def commit(self, request, context):
+        term = request.term
+        ack =request.ack
+        follower = request.follower
+
+        if term == self.current_term and self.current_role == "leader":
+            if success and ack >= self.acked_length.get(follower, 0):
+                self.sent_length[follower] = ack
+                self.acked_length[follower] = ack
+                self.commit_log_entries()
+            elif self.sent_length.get(follower, 0) > 0:
+                self.sent_length[follower] -= 1
+                self.replicate_log(self.node_id, follower)
+        elif term > self.current_term:
+            self.current_term = term
+            self.current_role = "follower"
+            self.voted_for = None
+            self.cancel_election_timer()
 
 
 
