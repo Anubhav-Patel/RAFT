@@ -1,9 +1,13 @@
+import random as randint
+import grpc as rat_pb2_grpc
+
 class Node:
     def __init__(self, node_id):
         self.node_id = node_id
         self.current_term = 0
+        self.last_term =0
         self.voted_for = None
-        self.log = []
+        self.log = {}
         self.commit_length = 0
         self.current_role = "follower"
         self.current_leader = None
@@ -15,24 +19,31 @@ class Node:
         self.sent_length = {1:0, 2:0, 3:0, 4:0, 5:0}
         self.acked_length = {1:0, 2:0, 3:0, 4:0, 5:0}
 
-    def recover():
+    def recover(self):
         #TODO recover
-    
+        self.current_leader = "follower"
+        self.current_leader = None
+        self.votes_received = set()
+        self.sent_length = {1:0, 2:0, 3:0, 4:0, 5:0}
+        self.acked_length = {1:0, 2:0, 3:0, 4:0, 5:0}
 
 class RaftService(rat_pb2_grpc.RaftServiceServicer):
-    int node_id = int(input("Enter Node ID: "))
+    node_id = int(input("Enter Node ID: "))
     node1 = Node(node_id)
 
     def RequestVote(self, request, context):
-        self.current_term = self.current_term + 1
-        self.current_role = "candidate"
-        self.voted_for = self.node_id
-        self.votes_received = self.votes_received.add(self.node_id)
-
-        for nodes in self.other_nodes:
-            #TODO send msg
+        self.node1.current_term = self.node1.current_term + 1
+        self.node1.current_role = "candidate"
+        self.node1.voted_for = self.node1.node_id
+        self.node1.votes_received = self.node1.votes_received.add(self.node_id)
         
-        #TODO start election timer
+        if len(self.node1.log) > 0:
+            self.node1.last_term = self.node1.log[len(self.node1.log) - 1].term
+        
+        # for nodes in self.other_nodes:
+        #     #TODO send msg
+        
+        # #TODO start election timer
 
     def giveVote(self, request, context):
         if(request.current_term > self.current_term):
@@ -78,9 +89,9 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
             for follower_id in self.other_nodes:
                 if follower_id != self.node_id:
                     self.replicate_log(follower_id)
-        else:
-            if self.current_leader is not None:
-                #TODO self.forward_to_leader(msg)
+        # else:
+            # if self.current_leader is not None:
+            #     #TODO self.forward_to_leader(msg)
 
     def replicate_log(follower_id):
         previous_len = self.sent_length.get(follower_id, 0) 
@@ -111,63 +122,7 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
         else:
             self.send_log_response(leader_id, 0, False)
 
-    def AppendEntries(self, request, context):
-        suffix = request.suffix
-        prefix_len = request.prefix_len
-        leader_commit = request.leader_commit
-
-        if suffix and len(self.log) > prefix_len:
-            index = min(len(self.log), prefix_len + len(suffix)) - 1
-            if self.log[index]['term'] != suffix[index - prefix_len]['term']:
-                self.log = self.log[:prefix_len]
-
-        if prefix_len + len(suffix) > len(self.log):
-            for i in range(len(self.log) - prefix_len, len(suffix)):
-                self.log.append(suffix[i])
-
-        if leader_commit > self.commit_length:
-            for i in range(self.commit_length, leader_commit):
-                self.deliver_to_application(self.log[i]['msg'])
-            self.commit_length = leader_commit
-
-    def ack(self, request, context):
-        term = request.term
-        ack =request.ack
-        success = request.success
-        follower = request.follower
-
-        if term == self.current_term and self.current_role == "leader":
-            if success and ack >= self.acked_length.get(follower, 0):
-                self.sent_length[follower] = ack
-                self.acked_length[follower] = ack
-                self.commit_log_entries()
-            elif self.sent_length.get(follower, 0) > 0:
-                self.sent_length[follower] -= 1
-                self.replicate_log(self.node_id, follower)
-        elif term > self.current_term:
-            self.current_term = term
-            self.current_role = "follower"
-            self.voted_for = None
-            self.cancel_election_timer()
-
-    def commit(self, request, context):
-        term = request.term
-        ack =request.ack
-        follower = request.follower
-
-        if term == self.current_term and self.current_role == "leader":
-            if success and ack >= self.acked_length.get(follower, 0):
-                self.sent_length[follower] = ack
-                self.acked_length[follower] = ack
-                self.commit_log_entries()
-            elif self.sent_length.get(follower, 0) > 0:
-                self.sent_length[follower] -= 1
-                self.replicate_log(self.node_id, follower)
-        elif term > self.current_term:
-            self.current_term = term
-            self.current_role = "follower"
-            self.voted_for = None
-            self.cancel_election_timer()
+    # def AppendEntries(self, request, context):
 
 
 
