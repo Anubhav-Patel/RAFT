@@ -195,13 +195,7 @@ class RaftNode:
 
     def acks(self, length):
         return sum(1 for node in self.nodes if self.ackedLength[node] >= length)
-    # def append_entries(self, prefixLen, leaderCommit, suffix):
-    #     for entry in suffix:
-    #         self.log.entries.append(entry)
-
-    #     # Update commitLength if leaderCommit is greater
-    #     if leaderCommit > self.commitLength:
-    #         self.commitLength = min(leaderCommit, len(self.log.entries))
+    
     def on_leader_election_timeout(self):
         if self.currentRole == "follower":
             self.start_leader_election()

@@ -6,7 +6,7 @@ import raft_pb2_grpc
 
 class LogEntry:
     def __init__(self, term, msg):
-        self.term = term
+        self.term = term 
         self.msg = msg
 
 class Log:
