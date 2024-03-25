@@ -38,8 +38,8 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
         self.node1.votes_received = self.node1.votes_received.add(self.node_id)
         
         if len(self.node1.log) > 0:
-            self.node1.last_term = self.node1.log[len(self.node1.log) - 1].term
-        
+            self.node1.last_term = self.node1.log[len(self.node1.log) - 1]
+        if self.node1.log[]
         # for nodes in self.other_nodes:
         #     #TODO send msg
         
