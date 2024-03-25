@@ -1,13 +1,27 @@
 import random as randint
-import grpc as rat_pb2_grpc
+import grpc 
+import raft_pb2
+import raft_pb2_grpc
 
+
+class LogEntry:
+    def __init__(self, term, msg):
+        self.term = term
+        self.msg = msg
+
+class Log:
+    def __init__(self):
+        self.entries = []
+
+    def append_entry(self, term, msg):
+        self.entries.append(LogEntry(term, msg))
 class Node:
     def __init__(self, node_id):
         self.node_id = node_id
         self.current_term = 0
-        self.last_term =0
+        # self.last_term =0
         self.voted_for = None
-        self.log = {}
+        self.log = Log()  #intializing log as an instance of Log
         self.commit_length = 0
         self.current_role = "follower"
         self.current_leader = None
@@ -36,10 +50,12 @@ class RaftService(rat_pb2_grpc.RaftServiceServicer):
         self.node1.current_role = "candidate"
         self.node1.voted_for = self.node1.node_id
         self.node1.votes_received = self.node1.votes_received.add(self.node_id)
-        
+        lastTerm =0
         if len(self.node1.log) > 0:
-            self.node1.last_term = self.node1.log[len(self.node1.log) - 1]
-        if self.node1.log[]
+            last_term = self.node1.log.entries[len(self.node1.log.entries)-1].term
+        msg = ("VoteRequest", self.node1.node_id, self.node1.current_term, len(self.node1.log.entries), lastTerm)
+        for node in self.node1.other_nodes:
+            self.
         # for nodes in self.other_nodes:
         #     #TODO send msg
         
