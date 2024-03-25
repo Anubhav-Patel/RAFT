@@ -148,30 +148,6 @@ class RaftNode:
         self.sentLength = len(self.log.entries)
         self.ackedLength = len(self.log.entries)
 
-    def on_receive_vote_request(self, cId, cTerm, cLogLength, cLogTerm):
-        if cTerm > self.currentTerm:
-            self.currentTerm = cTerm
-            self.currentRole = "follower"
-            self.votedFor = None
-
-        lastTerm = 0
-        if self.log.entries:
-            lastTerm = self.log.entries[-1].term
-
-        logOk = (cLogTerm > lastTerm) or (cLogTerm == lastTerm and cLogLength >= len(self.log.entries))
-
-        if cTerm == self.currentTerm and logOk and self.votedFor in {cId, None}:
-            self.votedFor = cId
-            self.send_msg(("VoteResponse", self.nodeId, self.currentTerm, True), cId)
-        else:
-            self.send_msg(("VoteResponse", self.nodeId, self.currentTerm, False), cId)
-
-    def on_receive_vote_response(self, voterId, term, voteGranted):
-        if term == self.currentTerm and voteGranted:
-            self.votesReceived.add(voterId)
-            if len(self.votesReceived) > len(self.nodes) // 2:
-                self.currentRole = "leader"
-                self.currentLeader = self.nodeId
 
 # Define nodes and their addresses
 nodes = {
