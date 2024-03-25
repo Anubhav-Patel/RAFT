@@ -133,7 +133,75 @@ class RaftNode:
         msg = ("LogRequest", leaderId, self.currentTerm, prefixLen, prefixTerm, self.commitLength, suffix)
         self.send_msg(msg, followerId)
 
-    
+    def on_receive_log_request(self, leaderId, term, prefixLen, prefixTerm, leaderCommit, suffix):
+        if term > self.currentTerm:
+            self.currentTerm = term
+            self.votedFor = None
+            self.cancel_election_timer()
+
+        if term == self.currentTerm:
+            self.currentRole = "follower"
+            self.currentLeader = leaderId
+
+        logOk = (len(self.log.entries) >= prefixLen) and \
+                (prefixLen == 0 or self.log.entries[prefixLen - 1].term == prefixTerm)
+
+        if term == self.currentTerm and logOk:
+            ack = prefixLen + len(suffix)
+            self.append_entries(prefixLen, leaderCommit, suffix)
+            self.send_msg(("LogResponse", self.nodeId, self.currentTerm, ack, True), leaderId)
+        else:
+            self.send_msg(("LogResponse", self.nodeId, self.currentTerm, 0, False), leaderId)
+    def append_entries(self, prefixLen, leaderCommit, suffix):
+        if suffix and len(self.log.entries) > prefixLen:
+            index = min(len(self.log.entries), prefixLen + len(suffix)) - 1
+            if self.log.entries[index].term != suffix[index - prefixLen].term:
+                self.log.entries = self.log.entries[:prefixLen]
+
+        if prefixLen + len(suffix) > len(self.log.entries):
+            for i in range(len(self.log.entries) - prefixLen, len(suffix)):
+                self.log.entries.append(suffix[i])
+
+        if leaderCommit > self.commitLength:
+            for i in range(self.commitLength, leaderCommit):
+                # Deliver log message to the application
+                print("Deliver:", self.log.entries[i].msg)
+            self.commitLength = leaderCommit
+
+    def on_receive_log_response(self, follower, term, ack, success):
+        if term == self.currentTerm and self.currentRole == "leader":
+            if success and ack >= self.ackedLength[follower]:
+                self.sentLength[follower] = ack
+                self.ackedLength[follower] = ack
+                self.commit_log_entries()
+            elif self.sentLength[follower] > 0:
+                self.sentLength[follower] -= 1
+                self.replicate_log(self.nodeId, follower)
+        elif term > self.currentTerm:
+            self.currentTerm = term
+            self.currentRole = "follower"
+            self.votedFor = None
+            self.cancel_election_timer()
+
+    def commit_log_entries(self):
+        minAcks = (len(self.nodes) + 1) // 2
+        ready = [length for length in range(1, len(self.log.entries) + 1) if self.acks(length) >= minAcks]
+
+        if ready and max(ready) > self.commitLength and self.log.entries[max(ready) - 1].term == self.currentTerm:
+            for i in range(self.commitLength, max(ready)):
+                # Deliver log message to the application
+                print("Deliver:", self.log.entries[i].msg)
+            self.commitLength = max(ready)
+
+    def acks(self, length):
+        return sum(1 for node in self.nodes if self.ackedLength[node] >= length)
+    # def append_entries(self, prefixLen, leaderCommit, suffix):
+    #     for entry in suffix:
+    #         self.log.entries.append(entry)
+
+    #     # Update commitLength if leaderCommit is greater
+    #     if leaderCommit > self.commitLength:
+    #         self.commitLength = min(leaderCommit, len(self.log.entries))
     def on_leader_election_timeout(self):
         if self.currentRole == "follower":
             self.start_leader_election()
