@@ -2,6 +2,7 @@ import grpc
 import raft_pb2
 import raft_pb2_grpc
 import time
+import threading
 
 class LogEntry:
     def __init__(self, term, msg):
@@ -14,6 +15,16 @@ class Log:
 
     def append_entry(self, term, msg):
         self.entries.append(LogEntry(term, msg))
+
+class KeyValueDatabase:
+    def __init__(self):
+        self.data = {}
+
+    def get(self, key):
+        return self.data.get(key, None)
+
+    def set(self, key, value):
+        self.data[key] = value
 
 class RaftNode:
     def __init__(self, nodeId, nodes):
@@ -219,7 +230,10 @@ class RaftNode:
             self.start_leader_election()
 
     def start_election_timer(self):
-        pass  # Placeholder for starting the election timer
+        if self.election_timer:
+            self.election_timer.cancel()
+        self.election_timer = threading.Timer(1.0, self.on_leader_election_timeout)
+        self.election_timer.start()
 
     def recover_from_crash(self):
         self.currentRole = "follower"
