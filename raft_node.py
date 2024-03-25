@@ -84,6 +84,56 @@ class RaftNode:
         else:
             self.send_msg(("VoteResponse", self.nodeId, self.currentTerm, False), cId)
 
+    def on_receive_vote_response(self, voterId, term, voteGranted):
+        if self.currentRole == "candidate" and term == self.currentTerm and voteGranted:
+            self.votesReceived.add(voterId)
+            if len(self.votesReceived) >= (len(self.nodes) + 1) // 2:
+                self.currentRole = "leader"
+                self.currentLeader = self.nodeId
+                self.cancel_election_timer()
+                for follower in self.nodes:
+                    if follower != self.nodeId:
+                        self.sentLength[follower] = len(self.log.entries)
+                        self.ackedLength[follower] = 0
+                        self.replicate_log(self.nodeId, follower)
+        elif term > self.currentTerm:
+            self.currentTerm = term
+            self.currentRole = "follower"
+            self.votedFor = None
+            self.cancel_election_timer()
+
+    def broadcast_msg(self, msg):
+        if self.currentRole == "leader":
+            self.append_to_log(msg, self.currentTerm)
+            self.ackedLength[self.nodeId] = len(self.log.entries)
+            for follower in self.nodes:
+                if follower != self.nodeId:
+                    self.replicate_log(self.nodeId, follower)
+        else:
+            # Forward the request to the current leader via a FIFO link
+            if self.currentLeader:
+                self.send_msg(("ForwardMsg", self.nodeId, msg, self.currentTerm), self.currentLeader)
+
+    def periodically_replicate_log(self):
+        if self.currentRole == "leader":
+            for follower in self.nodes:
+                if follower != self.nodeId:
+                    self.replicate_log(self.nodeId, follower)
+
+    def replicate_log(self, leaderId, followerId):
+        prefixLen = self.sentLength[followerId]
+        suffix = []
+        if prefixLen < len(self.log.entries):
+            suffix = self.log.entries[prefixLen:]
+
+        prefixTerm = 0
+        if prefixLen > 0:
+            prefixTerm = self.log.entries[prefixLen - 1].term
+
+        msg = ("LogRequest", leaderId, self.currentTerm, prefixLen, prefixTerm, self.commitLength, suffix)
+        self.send_msg(msg, followerId)
+
+    
     def on_leader_election_timeout(self):
         if self.currentRole == "follower":
             self.start_leader_election()
