@@ -1,6 +1,7 @@
 import grpc
 import raft_pb2
 import raft_pb2_grpc
+import time
 
 class LogEntry:
     def __init__(self, term, msg):
@@ -152,6 +153,8 @@ class RaftNode:
             self.send_msg(("LogResponse", self.nodeId, self.currentTerm, ack, True), leaderId)
         else:
             self.send_msg(("LogResponse", self.nodeId, self.currentTerm, 0, False), leaderId)
+
+
     def append_entries(self, prefixLen, leaderCommit, suffix):
         if suffix and len(self.log.entries) > prefixLen:
             index = min(len(self.log.entries), prefixLen + len(suffix)) - 1
@@ -167,6 +170,21 @@ class RaftNode:
                 # Deliver log message to the application
                 print("Deliver:", self.log.entries[i].msg)
             self.commitLength = leaderCommit
+
+    def start_heartbeat(self):
+        while self.currentRole == "leader":
+            for node in self.nodes:
+                msg = raft_pb2.Message(
+                    msg_type=raft_pb2.Message.AppendEntries,
+                    sender=self.nodeId,
+                    term=self.currentTerm,
+                    prev_log_index=len(self.log.entries) - 1,
+                    prev_log_term=self.log.entries[-1].term if self.log.entries else 0,
+                    entries=self.log.entries,
+                    leader_commit=self.commitLength
+                )
+                self.send_msg(msg, node)
+            time.sleep(1.0)
 
     def on_receive_log_response(self, follower, term, ack, success):
         if term == self.currentTerm and self.currentRole == "leader":
