@@ -1,45 +1,39 @@
 syntax = "proto3";
 
-// Message types
+// Message types used in Raft consensus algorithm
+
+message Message {
+    enum MessageType {
+        SetRequest = 0;
+        GetRequest = 1;
+        VoteRequest = 2;
+        VoteResponse = 3;
+        LogRequest = 4;
+        LogResponse = 5;
+        AppendEntries = 6;
+        ForwardMsg = 7;
+    }
+
+    MessageType msg_type = 1;
+    string sender = 2;
+    int32 term = 3;
+    int32 log_length = 4;
+    int32 last_log_term = 5;
+    int32 prev_log_index = 6;
+    int32 prev_log_term = 7;
+    repeated LogEntry entries = 8;
+    int32 leader_commit = 9;
+    string key = 10;
+    string value = 11;
+}
+
 message LogEntry {
     int32 term = 1;
     string msg = 2;
 }
 
-message Log {
-    repeated LogEntry entries = 1;
-}
+message Empty {}
 
-// Raft service definition
 service RaftNode {
-    rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse) {}
-    rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse) {}
+    rpc ReceiveMessage(Message) returns (Empty);
 }
-
-// Message types for Raft RPCs
-message RequestVoteRequest {
-    int32 term = 1;
-    string candidate_id = 2;
-    int32 last_log_index = 3;
-    int32 last_log_term = 4;
-}
-
-message RequestVoteResponse {
-    int32 term = 1;
-    bool vote_granted = 2;
-}
-
-message AppendEntriesRequest {
-    int32 term = 1;
-    string leader_id = 2;
-    int32 prev_log_index = 3;
-    int32 prev_log_term = 4;
-    repeated LogEntry entries = 5;
-    int32 leader_commit = 6;
-}
-
-message AppendEntriesResponse {
-    int32 term = 1;
-    bool success = 2;
-}
-

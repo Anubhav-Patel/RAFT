@@ -3,6 +3,16 @@ import raft_pb2
 import raft_pb2_grpc
 import time
 import threading
+import concurrent.futures
+
+class RaftNodeServicer(raft_pb2_grpc.RaftNodeServicer):
+    def __init__(self, raft_node):
+        self.raft_node = raft_node
+
+    def ReceiveMessage(self, request, context):
+        msg = (request.msg_type, request.key, request.value)
+        self.raft_node.on_receive_message(msg)
+        return raft_pb2.Empty()
 
 class LogEntry:
     def __init__(self, term, msg):
@@ -39,13 +49,25 @@ class RaftNode:
         self.votesReceived = {}
         self.sentLength = len(self.log.entries)
         self.ackedLength = len(self.log.entries)
-
+        self.keyValueDB = KeyValueDatabase()
         # Connect to other nodes using gRPC channel
         self.grpc_channels = {}
         for node_id, node_address in self.nodes.items():
             if node_id != self.nodeId:  # Skip connecting to itself
                 self.grpc_channels[node_id] = grpc.insecure_channel(node_address)
+        self.start_execution()
 
+    def start_execution(self):
+        threading.Thread(target=self.listen_for_messages).start()
+
+    def listen_for_messages(self):
+        # Start a gRPC server to listen for incoming messages
+        server = grpc.server(thread_pool=concurrent.futures.ThreadPoolExecutor())
+        raft_pb2_grpc.add_RaftNodeServicer_to_server(RaftNodeServicer(self), server)
+        server.add_insecure_port('[::]:' + self.nodes[self.nodeId].split(':')[1])  # Use the node's own port
+        server.start()
+        server.wait_for_termination()
+        
     def append_to_log(self, msg, term):
         self.log.append_entry(term, msg)
 
@@ -59,7 +81,9 @@ class RaftNode:
             sender=self.nodeId,
             term=self.currentTerm,
             log_length=len(self.log.entries),
-            last_log_term=self.log.entries[-1].term if self.log.entries else 0
+            last_log_term=self.log.entries[-1].term if self.log.entries else 0,
+            key=msg[1],  # Pass key for set/get operations
+            value=msg[2]  # Pass value for set operation
         )
 
         # Send message using gRPC
@@ -241,6 +265,29 @@ class RaftNode:
         self.votesReceived = {}
         self.sentLength = len(self.log.entries)
         self.ackedLength = len(self.log.entries)
+
+
+    def set_value(self, key, value):
+        self.keyValueDB.set(key, value)
+
+    def get_value(self, key):
+        return self.keyValueDB.get(key)
+
+    def on_receive_message(self, msg):
+        if msg.msg_type == raft_pb2.Message.SetRequest:
+            self.on_receive_set_request(msg)
+        elif msg.msg_type == raft_pb2.Message.GetRequest:
+            self.on_receive_get_request(msg)
+        else:
+            super().on_receive_message(msg)
+
+    def on_receive_set_request(self, msg):
+        self.set_value(msg.key, msg.value)
+        # Respond to the client if required
+
+    def on_receive_get_request(self, msg):
+        value = self.get_value(msg.key)
+        # Respond to the client with the retrieved value if required
 
 
 # Define nodes and their addresses

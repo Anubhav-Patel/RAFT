@@ -14,25 +14,21 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nraft.proto\"%\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0b\n\x03msg\x18\x02 \x01(\t\"!\n\x03Log\x12\x1a\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\t.LogEntry\"g\n\x12RequestVoteRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x14\n\x0c\x63\x61ndidate_id\x18\x02 \x01(\t\x12\x16\n\x0elast_log_index\x18\x03 \x01(\x05\x12\x15\n\rlast_log_term\x18\x04 \x01(\x05\"9\n\x13RequestVoteResponse\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x14\n\x0cvote_granted\x18\x02 \x01(\x08\"\x99\x01\n\x14\x41ppendEntriesRequest\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x11\n\tleader_id\x18\x02 \x01(\t\x12\x16\n\x0eprev_log_index\x18\x03 \x01(\x05\x12\x15\n\rprev_log_term\x18\x04 \x01(\x05\x12\x1a\n\x07\x65ntries\x18\x05 \x03(\x0b\x32\t.LogEntry\x12\x15\n\rleader_commit\x18\x06 \x01(\x05\"6\n\x15\x41ppendEntriesResponse\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0f\n\x07success\x18\x02 \x01(\x08\x32\x88\x01\n\x08RaftNode\x12:\n\x0bRequestVote\x12\x13.RequestVoteRequest\x1a\x14.RequestVoteResponse\"\x00\x12@\n\rAppendEntries\x12\x15.AppendEntriesRequest\x1a\x16.AppendEntriesResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nraft.proto\"\x8f\x03\n\x07Message\x12&\n\x08msg_type\x18\x01 \x01(\x0e\x32\x14.Message.MessageType\x12\x0e\n\x06sender\x18\x02 \x01(\t\x12\x0c\n\x04term\x18\x03 \x01(\x05\x12\x12\n\nlog_length\x18\x04 \x01(\x05\x12\x15\n\rlast_log_term\x18\x05 \x01(\x05\x12\x16\n\x0eprev_log_index\x18\x06 \x01(\x05\x12\x15\n\rprev_log_term\x18\x07 \x01(\x05\x12\x1a\n\x07\x65ntries\x18\x08 \x03(\x0b\x32\t.LogEntry\x12\x15\n\rleader_commit\x18\t \x01(\x05\x12\x0b\n\x03key\x18\n \x01(\t\x12\r\n\x05value\x18\x0b \x01(\t\"\x94\x01\n\x0bMessageType\x12\x0e\n\nSetRequest\x10\x00\x12\x0e\n\nGetRequest\x10\x01\x12\x0f\n\x0bVoteRequest\x10\x02\x12\x10\n\x0cVoteResponse\x10\x03\x12\x0e\n\nLogRequest\x10\x04\x12\x0f\n\x0bLogResponse\x10\x05\x12\x11\n\rAppendEntries\x10\x06\x12\x0e\n\nForwardMsg\x10\x07\"%\n\x08LogEntry\x12\x0c\n\x04term\x18\x01 \x01(\x05\x12\x0b\n\x03msg\x18\x02 \x01(\t\"\x07\n\x05\x45mpty2.\n\x08RaftNode\x12\"\n\x0eReceiveMessage\x12\x08.Message\x1a\x06.Emptyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'raft_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
-  _globals['_LOGENTRY']._serialized_start=14
-  _globals['_LOGENTRY']._serialized_end=51
-  _globals['_LOG']._serialized_start=53
-  _globals['_LOG']._serialized_end=86
-  _globals['_REQUESTVOTEREQUEST']._serialized_start=88
-  _globals['_REQUESTVOTEREQUEST']._serialized_end=191
-  _globals['_REQUESTVOTERESPONSE']._serialized_start=193
-  _globals['_REQUESTVOTERESPONSE']._serialized_end=250
-  _globals['_APPENDENTRIESREQUEST']._serialized_start=253
-  _globals['_APPENDENTRIESREQUEST']._serialized_end=406
-  _globals['_APPENDENTRIESRESPONSE']._serialized_start=408
-  _globals['_APPENDENTRIESRESPONSE']._serialized_end=462
-  _globals['_RAFTNODE']._serialized_start=465
-  _globals['_RAFTNODE']._serialized_end=601
+  _globals['_MESSAGE']._serialized_start=15
+  _globals['_MESSAGE']._serialized_end=414
+  _globals['_MESSAGE_MESSAGETYPE']._serialized_start=266
+  _globals['_MESSAGE_MESSAGETYPE']._serialized_end=414
+  _globals['_LOGENTRY']._serialized_start=416
+  _globals['_LOGENTRY']._serialized_end=453
+  _globals['_EMPTY']._serialized_start=455
+  _globals['_EMPTY']._serialized_end=462
+  _globals['_RAFTNODE']._serialized_start=464
+  _globals['_RAFTNODE']._serialized_end=510
 # @@protoc_insertion_point(module_scope)
