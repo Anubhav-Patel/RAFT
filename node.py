@@ -29,17 +29,21 @@ class RaftService(raft_pb2_grpc.RaftServiceServicer):
         # self.start_election_timer()
         
     def start_election_timer(self):
-        i = 1
-        while(i >= 0):
-            if(i == 0):
+        self.election_timeout = 10
+        while(self.election_timeout >= 0):
+            if(self.election_timeout == 0):
                 self.start_election()
                 print(self.current_role)
-                i = 1
+                self.election_timeout = 1
             time.sleep(1)
-            i = i-1
+            self.election_timeout = self.election_timeout-1
 
+    def cancel_election_timer(self):
+        print(f"Cancel election timer called for : {self.node_id}")
+        self.election_timeout = 10
 
     def start_election(self):
+        print(f"Start election called for : {self. node_id}")
         self.current_term = self.current_term + 1
         self.current_role = "candidate"
         self.voted_for = self.node_id
@@ -52,8 +56,6 @@ class RaftService(raft_pb2_grpc.RaftServiceServicer):
         try:
             for nodes in self.other_nodes:
                 if nodes != self.node_id:
-
-                    # print("xxx")
                     channel = grpc.insecure_channel(f'localhost:{nodes}')  
                     stub = raft_pb2_grpc.RaftServiceStub(channel)
                     vote_request = raft_pb2.RequestVoteRequest(term = self.current_term, candidate_id = self.node_id, last_log_index = len(self.log), last_log_term = last_term)
@@ -92,7 +94,7 @@ class RaftService(raft_pb2_grpc.RaftServiceServicer):
             if len(self.votes_received) >= (len(self.other_nodes) + 1) // 2:
                 self.current_role = "leader"
                 self.current_leader = self.node_id
-                # self.cancel_election_timer()
+                self.cancel_election_timer()
                 for follower_id in self.other_nodes:
                     if follower_id != self.node_id:
                         self.sent_length[follower_id] = len(self.log)
@@ -103,7 +105,7 @@ class RaftService(raft_pb2_grpc.RaftServiceServicer):
             self.current_term = response.term
             self.current_role = "follower"
             self.voted_for = None
-            # self.cancel_election_timer()
+            self.cancel_election_timer()
 
 
     def broadcast_msg_to_followers(self, request, context):
